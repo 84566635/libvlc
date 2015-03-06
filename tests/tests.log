@@ -1,0 +1,3 @@
+DEBUG tests/cvlc_tests.c:124: ----- RUNNING: ./tests/cvlc_tests
+DEBUG tests/cvlc_tests.c:118: 
+----- test_bit_layer
