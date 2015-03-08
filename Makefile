@@ -1,6 +1,6 @@
 CFLAGS=-g -O2 -Wall -Wextra -Isrc -rdynamic $(OPTFLAGS)
 CC=gcc
-LIBS=-pthread
+LIBS=-pthread -lm
 
 SOURCES=$(wildcard src/**/*.c src/*.c)
 OBJECTS=$(patsubst %.c,%.o,$(SOURCES))
@@ -43,6 +43,7 @@ clean:
 	rm -f tests/tests.log
 	find . -name "*.gc*" -exec rm {} \;
 	rm -rf `find . -name "*.dSYM" -print`
+	rm -f $(INSTALL_TARGET)
 
 # The Install
 install: CFLAGS += $(OBJECTS)

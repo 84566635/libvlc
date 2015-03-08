@@ -1,3 +1,7 @@
+/* This file contains code related to creating, sending, and getting
+ * bytes.
+ */
+
 #include "link_emu.h"
 
 /* Description: Read an int and return the indicated bit.

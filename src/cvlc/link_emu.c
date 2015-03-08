@@ -1,3 +1,7 @@
+/* This file contains code for emulating the LINK layer, and for
+ * synchronization of the bit layer.
+ */
+
 #include <semaphore.h>
 #include <assert.h>
 
@@ -9,6 +13,8 @@ char rx;
 
 sem_t ok_to_read_bit;
 sem_t ok_to_write_bit;
+
+int bits_waiting = 0;
 
 int init_link()
 {
@@ -29,10 +35,13 @@ char send_bit(char bit)
 {
   int rc = 0;
 
+  debug("Waiting to send bit");
   rc = sem_wait(&ok_to_write_bit);
   check(rc == 0, "Failed to wait for LINK semaphore.");
 
   tx = bit;
+  bits_waiting++;;
+  debug("Sent bit");
 
   sem_getvalue(&ok_to_read_bit, &rc);
   assert(rc == 0 && "ok_to_read_bit has wrong value.");
@@ -49,9 +58,12 @@ char get_bit()
 {
   int rc = 0;
 
+  debug("Waiting to get bit");
   sem_wait(&ok_to_read_bit);
 
   char bit = tx;
+  bits_waiting--;
+  debug("Got bit");
 
   sem_getvalue(&ok_to_write_bit, &rc);
   assert(rc == 0 && "ok_to_write_bit has wrong value.");

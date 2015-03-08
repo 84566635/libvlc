@@ -1,3 +1,10 @@
+/* This file contains code related to creating, sending, and getting
+ * packages.
+ */
+
+
+#include <assert.h>
+
 #include "bstrlib.h"
 #include "dbg.h"
 #include "byte_layer.h"
@@ -24,23 +31,36 @@ bstring get_packet()
   int rc = 0;
   int i = 0;
   unsigned char data_length = 0;
+  char byte = 0;
 
   //Prepare an empty packet
   bstring packet = bfromcstralloc(total_packet_size, "");
 
   data_length = get_byte();
+  rc = binsertch(packet, 0, 1, data_length);
+  check(rc == BSTR_OK, "Failed to add packet length.");
+
+  debug("Got packet size: %d", data_length);
 
   //Get rest of packet
-  for(i = PACKET_LENGTH_SIZE;i < PACKET_DATA_SIZE;i++){
-    rc = binsertch(packet, i, 1, get_byte());
+  for(i = PACKET_LENGTH_SIZE;i < data_length + PACKET_LENGTH_SIZE;i++){
+    byte = get_byte();
+
+    rc = binsertch(packet, i, 1, byte);
     check(rc == BSTR_OK, "Failed to get packet.");
+
+    debug("Got [%d = %d]", i, byte);
+  }
+  
+  //Send ACK frame
+  if(data_length != 0){
+    rc = send_ack();
   }
 
-  printf("Received packet:-----------------\n%s\n----------------\n", bdata(packet));
-  
   return packet;
 
  error:
+  bdestroy(packet);
   return NULL;
 }
 
@@ -50,15 +70,109 @@ bstring get_packet()
  */
 int send_packet(bstring packet)
 {
+  int rc = 0;
   int i = 0;
+  char byte = 0;
 
   //Store packet size
   int data_size = blength(packet);
 
+  debug("Sent packet size: %d", data_size);
+
   //Transmit one byte at a time
-  for(i = 5;i < data_size;i++){
-    send_byte(bchar(packet, i));
+  for(i = 0;i < data_size;i++){
+    byte = bchar(packet, i);
+    send_byte(byte);
+    debug("Sent [%d = %d]", i, byte);
   }
-  //printf("Packet of size %d sent.\n", blength(packet));
+
+  bdestroy(packet);
+
+  //Wait for ACK frame
+  if(data_size != 1) rc = get_ack();
+
+ error:
   return 0;
+}
+
+/* Description: Create a packet for sending data.
+ * Author: Albin Severinson
+ * Date: 07/03/15
+ */
+bstring create_data_frame(bstring payload)
+{
+  int rc = 0;
+  unsigned char payload_length = blength(payload);
+  assert(payload_length <= PACKET_DATA_SIZE && "Payload exceeded max size.");
+  
+  //Prepare packet
+  bstring packet = bfromcstr("");
+  
+  //Insert payload length
+  rc = binsertch(packet, 0, 1, payload_length);
+  check(rc == 0, "Failed to add package size.");
+
+  //Concat with payload
+  bconcat(packet, payload);
+
+  //Cleanup payload
+  bdestroy(payload);
+
+  return packet;
+
+ error:
+  bdestroy(packet);
+  return NULL;
+  
+}
+
+/* Description: Create a packet for sending an ACK.
+ * Author: Albin Severinson
+ * Date: 07/03/15
+ */
+bstring create_ack_frame()
+{
+  bstring ack_payload = bfromcstr("");
+  bstring packet = create_data_frame(ack_payload);
+  return packet;
+}
+
+/* Description: Create and send an ACK frame.
+ * Author: Albin Severinson
+ * Date: 07/03/15
+ */
+int send_ack()
+{
+  int rc = 0;
+  debug("Sending ACK frame.");
+  bstring ack_frame = create_ack_frame();
+  rc = send_packet(ack_frame);
+  check(rc == 0, "Failed to send ACK frame.");
+  return 0;
+
+ error:
+  return -1;
+}
+
+/* Description: Wait for an ACK frame.
+ * Author: Albin Severinson
+ * Date: 07/03/15
+ */
+int get_ack()
+{
+  debug("Waiting for ACK frame.");
+  int rc = 0;
+  bstring packet = get_packet();
+  check(packet, "Failed to get ACK.");
+
+  rc = blength(packet);
+  bdestroy(packet);
+
+  if(rc == 1){
+    debug("Got ACK frame.");
+    return 0;
+  }
+
+ error:
+  return -1;
 }
