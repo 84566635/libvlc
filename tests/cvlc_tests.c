@@ -134,12 +134,14 @@ void *send_packets()
 void *get_packets()
 {
   debug("get_packets");
-  packet_in = get_packet();
+  packet_in = get_data_frame();
   mu_assert(packet_in, "Error in get_packet");
   return NULL;
 }
 
-char *test_packet_layer()
+/* Test sending a regular, correct packet.
+ */
+char *test_packet()
 {
   int rc = 0;
   debug("1");
@@ -147,6 +149,47 @@ char *test_packet_layer()
   //Set up a packet
   bstring payload = bfromcstr("test packet");
   packet_out = create_data_frame(payload);
+
+  debug("2");
+
+  //Create threads for sending and receiving
+  pthread_t rx_tid;
+  pthread_t tx_tid;
+
+  pthread_attr_t rx_attr;
+  pthread_attr_t tx_attr;
+
+  rc = pthread_attr_init(&rx_attr);
+  mu_assert(rc == 0, "Failed to init rx thread.");
+
+  rc = pthread_attr_init(&tx_attr);
+  mu_assert(rc == 0, "Failed to init tx thread.");
+
+  pthread_create(&rx_tid, &rx_attr, send_packets, "");
+  pthread_create(&tx_tid, &tx_attr, get_packets, "");
+
+  pthread_join(rx_tid, NULL);
+  pthread_join(tx_tid, NULL);
+
+  rc = biseq(packet_in, packet_out);
+  mu_assert(rc != 0, "Packet sent isn't equal to packet recieved.");
+  
+  return NULL;
+}
+
+/* Test sending a packet with some unwanted padding prepended.
+ */
+char *test_prepended_packet()
+{
+  int rc = 0;
+  debug("1");
+
+  //Set up a packet
+  bstring payload = bfromcstr("test packet");
+  bstring packet = create_data_frame(payload);
+  bstring padding = bfromcstr("a");
+  bconcat(padding, packet);
+  packet_out = padding;
 
   debug("2");
 
@@ -183,7 +226,8 @@ char *all_tests()
   mu_run_test(test_init);
   mu_run_test(test_bit_layer);
   mu_run_test(test_byte_layer);
-  mu_run_test(test_packet_layer);
+  mu_run_test(test_packet);
+  mu_run_test(test_prepended_packet);
 
   return NULL;
 }

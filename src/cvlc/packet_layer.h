@@ -12,6 +12,7 @@ int send_packet(bstring );
 bstring create_data_frame(bstring );
 bstring create_ack_frame();
 int send_ack();
+bstring get_data_frame();
 int get_ack();
 
 #endif

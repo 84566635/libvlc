@@ -22,6 +22,7 @@ int init_packet_layer()
   return 0;
 }
 
+
 /* Description: Wait for a packet from LINK and return it.
  * Author: Albin Severinson
  * Date: 03/03/15
@@ -36,6 +37,7 @@ bstring get_packet()
   //Prepare an empty packet
   bstring packet = bfromcstralloc(total_packet_size, "");
 
+  //Get packet
   data_length = get_byte();
   rc = binsertch(packet, 0, 1, data_length);
   check(rc == BSTR_OK, "Failed to add packet length.");
@@ -107,10 +109,22 @@ bstring create_data_frame(bstring payload)
   
   //Prepare packet
   bstring packet = bfromcstr("");
-  
-  //Insert payload length
-  rc = binsertch(packet, 0, 1, payload_length);
-  check(rc == 0, "Failed to add package size.");
+
+  //If it's a DATA frame, add the preable
+  if(payload_length != 0){
+    rc = binsertch(packet, 0, 1, preamble);
+    check(rc == BSTR_OK, "Failed to insert preamble.");
+
+    //Insert payload length
+    rc = binsertch(packet, 1, 1, payload_length);
+    check(rc == 0, "Failed to add package size.");
+    debug("Preamble added");
+  }
+  else{
+    //Insert payload length
+    rc = binsertch(packet, 0, 1, payload_length);
+    check(rc == 0, "Failed to add package size.");
+  }
 
   //Concat with payload
   bconcat(packet, payload);
@@ -152,6 +166,27 @@ int send_ack()
 
  error:
   return -1;
+}
+
+/* Description: Wait for a DATA frame and store the payload.
+ * Author: Albin Severinson
+ * Date: 08/03/15
+ */
+bstring get_data_frame()
+{
+  int rc = 0;
+  bstring packet;
+
+  //Wait for preamble to occur
+  rc = wait_for_preamble();
+  check(rc == 0, "Failed to get preamble.");
+
+  //Get packet
+  packet = get_packet();
+  return packet;
+
+ error:
+  return NULL;
 }
 
 /* Description: Wait for an ACK frame.
