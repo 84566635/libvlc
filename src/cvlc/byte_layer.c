@@ -2,7 +2,7 @@
  * bytes.
  */
 
-#include "link_emu.h"
+#include <link/link.h>
 #include "byte_layer.h"
 #include "dbg.h"
 

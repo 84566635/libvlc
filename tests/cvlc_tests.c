@@ -3,8 +3,7 @@
 
 #include "minunit.h"
 #include <cvlc/dbg.h>
-
-#include <cvlc/link_emu.h>
+#include <link/link.h>
 #include <cvlc/byte_layer.h>
 #include <cvlc/bstrlib.h>
 #include <cvlc/packet_layer.h>
