@@ -23,11 +23,12 @@ Compiling:
 - Compile the finished program by typing "make install" in the root directory.
 
 The typical use case is to write:
+```
 make            #Compile library functions
 make tests      #Run unit tests to make sure everything is working
 make install    #Create the executable
 ./bin/cvlc      #Run the executable
-
+```
 TODO:
 --------------
 - Improve the ACK frame implementation.
