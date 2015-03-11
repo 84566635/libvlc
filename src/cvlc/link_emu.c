@@ -4,6 +4,8 @@
 
 #include <semaphore.h>
 #include <assert.h>
+#include <time.h>
+#include <unistd.h>
 
 #include "link_emu.h"
 #include "dbg.h"
@@ -16,11 +18,18 @@ sem_t ok_to_write_bit;
 
 int bits_waiting = 0;
 
+/* Description: Init the link layer and the semaphores used for
+ * synchronization when simulating.
+ * Author: Albin Severinson
+ * Date: 11/03/15
+ */
 int init_link()
 {
   int rc = 0;
   tx = 0;
   rx = 0;
+
+  //Init synchronization semaphores
   rc = sem_init(&ok_to_write_bit, 0, 1);
   check(rc == 0, "Failed to init LINK semaphore.");
 
@@ -31,11 +40,16 @@ int init_link()
   return rc;
 }
 
+/* Description: Send a bit. This method is to be used when simulating
+ * the system.
+ * Author: Albin Severinson
+ * Date: 11/03/15
+ */
 char send_bit(char bit)
 {
   int rc = 0;
-
   debug("Waiting to send bit");
+
   rc = sem_wait(&ok_to_write_bit);
   check(rc == 0, "Failed to wait for LINK semaphore.");
 
@@ -54,10 +68,14 @@ char send_bit(char bit)
   return -1;
 }
 
+/* Description: Get a bit. This function is to be used when simulating
+ * the system.
+ * Author: Albin Severinson
+ * Date: 11/03/15
+ */
 char get_bit()
 {
   int rc = 0;
-
   debug("Waiting to get bit");
   sem_wait(&ok_to_read_bit);
 

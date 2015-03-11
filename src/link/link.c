@@ -1,3 +1,8 @@
+/* This file contains code which is to be used in the real VLC
+   implementation. This code is meant to interface with the hardware.
+   This part isn't fully implemented yet.
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 

@@ -91,10 +91,16 @@ int send_packet(bstring packet)
   bdestroy(packet);
 
   //Wait for ACK frame
-  if(data_size != 1) rc = get_ack();
+  if(data_size != 1){
+    rc = get_ack();
+    check(rc == 0, "Error when waiting for ACK.");
+    //TODO Make a retransmission if the ACK fails.
+  }
+
+  return 0;
 
  error:
-  return 0;
+  return -1;
 }
 
 /* Description: Create a packet for sending data.
@@ -157,6 +163,8 @@ bstring create_ack_frame()
  */
 int send_ack()
 {
+  //TODO Improve ACK. Current ACK is all zeros which is a problem.
+
   int rc = 0;
   debug("Sending ACK frame.");
   bstring ack_frame = create_ack_frame();

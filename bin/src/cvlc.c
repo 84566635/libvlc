@@ -1,12 +1,8 @@
 #include <stdio.h>
 #include <pthread.h>
 
-#include <cvlc/link_emu.h>
-#include <cvlc/byte_layer.h>
+#include <cvlc/packet_layer.h>
 #include <cvlc/dbg.h>
-
-char out[8] = {0};
-char in[8] = {0};
 
 
 
@@ -19,29 +15,19 @@ int main(int argc, char *argv[])
   rc = init_link();
   check(rc == 0, "Failed to init link layer.");
 
-  //Set up sequence to send
-  out[0] = 1;
-  out[2] = 1;
-  out[7] = 1;
+  rc = init_packet_layer();
+  check(rc == 0, "Failed to init packet layer.");
 
-  //Create threads for sending and receiving
-  pthread_t rx_tid;
-  pthread_t tx_tid;
+  //Set up packet and send it
+  bstring payload = bfromcstr("vlc");
+  bstring packet = create_data_frame(payload);
+  send_packet(payload);
 
-  pthread_attr_t rx_attr;
-  pthread_attr_t tx_attr;
-
-  rc = pthread_attr_init(&rx_attr);
-  check(rc == 0, "Failed to init rx thread.");
-
-  rc = pthread_attr_init(&tx_attr);
-  check(rc == 0, "Failed to init tx thread.");
-
-  //pthread_create(&rx_tid, &rx_attr, send_bytes, "");
-  //pthread_create(&tx_tid, &tx_attr, get_bytes, "");
-
-  pthread_join(rx_tid, NULL);
-  pthread_join(tx_tid, NULL);
+  /*
+  //recieve packet
+  bstring packet = get_data_frame();
+  debug("Got packet: %s", bdata(packet));
+  */
 
  error:
   return 0;

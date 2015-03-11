@@ -41,7 +41,7 @@ int send_file(char *file_name)
   int num_packets = 0;
 
   //Prepare an empty packet
-  bstring packet;
+  bstring packet = NULL;
 
   //Prepare data buffer
   bstring data_buffer = bfromcstr("");
@@ -71,7 +71,7 @@ int send_file(char *file_name)
   debug("File sent using %d packets.\n", num_packets);
 
  error: //fallthrough
-  bdestroy(packet);
+  if(packet) bdestroy(packet);
   bdestroy(data_buffer);
   if(data_stream) data_file = bsclose(data_stream);
   if(data_file) fclose(data_file);
