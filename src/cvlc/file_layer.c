@@ -14,20 +14,31 @@ int get_file(char *output_name)
   //Prepare an empty packet
   bstring packet;
 
+  //Prepare EOF statement
+  bstring eof = bfromcstr("eof");
+
   //Open the output file
   FILE *output_file = fopen(output_name, "w");
   check(output_file, "Failed to open output file.");
 
   while(1){
-    packet = get_packet();
-    debug("Recieved packet:\n %s\n", bdata(packet));
+    //Get a data frame
+    packet = get_data_frame();
 
-    sleep(1);
+    //Files are terminated with an eof packet. Check for this.
+    if(biseq(eof, packet) == 1) break;
+
+    //Print to file
+    fprintf(output_file, "%s", bdata(packet));
   }
+
+  fflush(output_file);
+  fclose(output_file);
 
   return 0;
 
  error:
+  if(output_file) fclose(output_file);
   return -1;
 }
 
@@ -46,6 +57,9 @@ int send_file(char *file_name)
   //Prepare data buffer
   bstring data_buffer = bfromcstr("");
 
+  //Prepare terminating packet
+  bstring eof = bfromcstr("eof");
+
   FILE *data_file = NULL;
   struct bStream *data_stream = NULL;
 
@@ -61,18 +75,29 @@ int send_file(char *file_name)
 
   //Read the stream in chunks of PACKET_DATA_SIZE
   while(bsread(data_buffer, data_stream, PACKET_DATA_SIZE) == BSTR_OK){
+
+    //Prepend the preamble and packet size.
     packet = create_data_frame(data_buffer);
+
+    //Send the packet
     rc = send_packet(packet);
-    check(rc == 0, "Failed to transmit packet.");
+    check(rc == 0, "Failed to send packet.");
+
+    //Clear the data buffer. The memory is free'd in send_packet.
+    data_buffer = bfromcstr("");
 
     num_packets++;
   }
+  
+  packet = create_data_frame(eof);
+  rc = send_packet(packet);
+  check(rc == 0, "Failed to send terminating packet.");
 
   debug("File sent using %d packets.\n", num_packets);
 
  error: //fallthrough
   if(packet) bdestroy(packet);
-  bdestroy(data_buffer);
+  if(data_buffer) bdestroy(data_buffer);
   if(data_stream) data_file = bsclose(data_stream);
   if(data_file) fclose(data_file);
 

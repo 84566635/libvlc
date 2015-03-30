@@ -31,9 +31,9 @@ make install    #Create the executable
 ```
 TODO:
 --------------
-- Improve the ACK frame implementation.
-- Add CRC checks to packets,
-- Add code for retransmitting the packet if the ACK or CRC check fails.
-- Read files and send as packets.
-- Read packets and store as files.
-- Implement the LINK layer in the programmable real-time unit (PRU).
+- Improve the ACK frame implementation. ACKs should be tied to individual packets rather than be a general signal. This will make full duplex communication easier.
+- Add CRC checks to packets.
+- Add unique sequence numbers to every packet. This way packets can be sent out of order and ACKs can be tied to individual packets.
+- Add code for retransmitting the packet if CRC check fails.
+- Implement the LINK layer in some environment that can handle hard real-time constraints.
+- Examine Xenomai project for performing real-time tasks.

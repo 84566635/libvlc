@@ -11,11 +11,21 @@ TESTS=$(patsubst %.c,%,$(TEST_SRC))
 INSTALL_SRC=$(wildcard bin/src/**/*.c bin/src/*.c)
 INSTALL=$(patsubst %.c,%.o,$(INSTALL_SRC))
 
+KERNEL_SRC=/lib/modules/$(shell uname -r)/build
+
+PWD:= $(shell if [ "$$PWD" != "" ]; then echo $$PWD; else pwd; fi)
+
 TARGET=build/cvlc.a
+MODULE_TARGET=build/vlc
 SO_TARGET=$(patsubst %.a,%.so,$(TARGET))
 INSTALL_TARGET=bin/cvlc
 
 all: $(TARGET) $(SO_TARGET)
+module:
+	$(MAKE) -Wall -C $(KERNEL_SRC) SUBDIRS=$(PWD) modules
+
+modules:
+	@echo "$(CFLAGS)"
 
 $(TARGET): CFLAGS += -fPIC
 $(TARGET): build $(OBJECTS)

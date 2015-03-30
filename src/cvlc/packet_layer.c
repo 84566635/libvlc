@@ -10,6 +10,10 @@
 #include "byte_layer.h"
 #include "packet_layer.h"
 
+#define ACK 'h'
+#define MAX_ACK_WAIT 3
+#define MAX_PACKET_RESEND 3
+
 int total_packet_size; //Calculated at init
 
 /* Description: Init the packet layer.
@@ -39,25 +43,28 @@ bstring get_packet()
 
   //Get packet
   data_length = get_byte();
-  rc = binsertch(packet, 0, 1, data_length);
-  check(rc == BSTR_OK, "Failed to add packet length.");
+  //rc = binsertch(packet, 0, 1, data_length);
+  //check(rc == BSTR_OK, "Failed to add packet length.");
 
   debug("Got packet size: %d", data_length);
 
   //Get rest of packet
-  for(i = PACKET_LENGTH_SIZE;i < data_length + PACKET_LENGTH_SIZE;i++){
+  for(i = 0;i < data_length;i++){
     byte = get_byte();
 
     rc = binsertch(packet, i, 1, byte);
     check(rc == BSTR_OK, "Failed to get packet.");
 
-    debug("Got [%d = %d]", i, byte);
+    //debug("Got [%d = %d]", i, byte);
   }
   
   //Send ACK frame
   if(data_length != 0){
     rc = send_ack();
+    check(rc == 0, "Failed to send ACK frame.");
   }
+
+  debug("[GOT PACKET]: %s", bdata(packet));
 
   return packet;
 
@@ -74,32 +81,37 @@ int send_packet(bstring packet)
 {
   int rc = 0;
   int i = 0;
+  int j = 0;
   char byte = 0;
+
+  debug("[SENDING]: %s", bdata(packet));
 
   //Store packet size
   int data_size = blength(packet);
 
-  debug("Sent packet size: %d", data_size);
+  for(j = 0;j < MAX_PACKET_RESEND;j++){
+    debug("[SENDING PACKET] size: %d try: %d", data_size, j);
 
-  //Transmit one byte at a time
-  for(i = 0;i < data_size;i++){
-    byte = bchar(packet, i);
-    send_byte(byte);
-    debug("Sent [%d = %d]", i, byte);
+    //Transmit one byte at a time
+    for(i = 0;i < data_size;i++){
+      byte = bchar(packet, i);
+      send_byte(byte);
+      //debug("Sent [%d = %d]", i, byte);
+    }
+
+    //Wait for ACK frame
+    if(data_size != 1){
+      rc = get_ack();
+      
+      //Return if we got the ACK
+      if(rc == 0){
+        bdestroy(packet);
+        return 0;
+      }
+    }
   }
 
   bdestroy(packet);
-
-  //Wait for ACK frame
-  if(data_size != 1){
-    rc = get_ack();
-    check(rc == 0, "Error when waiting for ACK.");
-    //TODO Make a retransmission if the ACK fails.
-  }
-
-  return 0;
-
- error:
   return -1;
 }
 
@@ -163,17 +175,12 @@ bstring create_ack_frame()
  */
 int send_ack()
 {
-  //TODO Improve ACK. Current ACK is all zeros which is a problem.
-
-  int rc = 0;
-  debug("Sending ACK frame.");
-  bstring ack_frame = create_ack_frame();
-  rc = send_packet(ack_frame);
-  check(rc == 0, "Failed to send ACK frame.");
+  //TODO Improve ACK. Current ACK isn't well designed for full duplex
+  //transmissions. ACK should specify which packet was ACK'd instead
+  //of sending a general signal.
+  debug("Sending ACK.");
+  send_byte(ACK);
   return 0;
-
- error:
-  return -1;
 }
 
 /* Description: Wait for a DATA frame and store the payload.
@@ -203,19 +210,17 @@ bstring get_data_frame()
  */
 int get_ack()
 {
-  debug("Waiting for ACK frame.");
-  int rc = 0;
-  bstring packet = get_packet();
-  check(packet, "Failed to get ACK.");
+  debug("Waiting for ACK...");
+  char ack = 0;
+  int i = 0;
 
-  rc = blength(packet);
-  bdestroy(packet);
-
-  if(rc == 1){
-    debug("Got ACK frame.");
-    return 0;
+  //Wait for the ACK frame
+  for(i = 0;i < MAX_ACK_WAIT;i++){
+    ack = get_byte();
+    if(ack == ACK){
+      debug("Got ACK!");
+      return 0;
+    }
   }
-
- error:
   return -1;
 }

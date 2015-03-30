@@ -4,7 +4,7 @@
 #include "bstrlib.h"
 
 #define PACKET_LENGTH_SIZE 1
-#define PACKET_DATA_SIZE 100
+#define PACKET_DATA_SIZE 254
 
 int init_packet_layer();
 bstring get_packet();

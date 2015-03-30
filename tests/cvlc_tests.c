@@ -7,6 +7,7 @@
 #include <cvlc/byte_layer.h>
 #include <cvlc/bstrlib.h>
 #include <cvlc/packet_layer.h>
+#include <cvlc/file_layer.h>
 
 void *test_init()
 {
@@ -123,7 +124,6 @@ bstring packet_out;
 
 void *send_packets()
 {
-  debug("send_packets");
   int rc = 0;
   rc = send_packet(packet_out);
   mu_assert(rc == 0, "Error in send_packet");
@@ -132,7 +132,6 @@ void *send_packets()
 
 void *get_packets()
 {
-  debug("get_packets");
   packet_in = get_data_frame();
   mu_assert(packet_in, "Error in get_packet");
   return NULL;
@@ -143,13 +142,10 @@ void *get_packets()
 char *test_packet()
 {
   int rc = 0;
-  debug("1");
 
   //Set up a packet
   bstring payload = bfromcstr("test packet");
   packet_out = create_data_frame(payload);
-
-  debug("2");
 
   //Create threads for sending and receiving
   pthread_t rx_tid;
@@ -181,7 +177,6 @@ char *test_packet()
 char *test_prepended_packet()
 {
   int rc = 0;
-  debug("1");
 
   //Set up a packet
   bstring payload = bfromcstr("test packet");
@@ -189,8 +184,6 @@ char *test_prepended_packet()
   bstring padding = bfromcstr("a");
   bconcat(padding, packet);
   packet_out = padding;
-
-  debug("2");
 
   //Create threads for sending and receiving
   pthread_t rx_tid;
@@ -217,6 +210,58 @@ char *test_prepended_packet()
   return NULL;
 }
 
+/* Send a damaged packet to check if the error detection works.
+ */
+char *test_incorrect_packet()
+{
+  return NULL;
+}
+
+char *in_file = "test_file.txt";
+char *out_file = "test_out_file.txt";
+
+void *send_files()
+{
+  send_file(in_file);
+  return NULL;
+}
+
+void *get_files()
+{
+  get_file(out_file);
+  return NULL;
+}
+
+/* Send a file consisting of several packets.
+ */
+char *test_file()
+{
+  int rc = 0;
+
+  //Set up a packet
+
+  //Create threads for sending and receiving
+  pthread_t rx_tid;
+  pthread_t tx_tid;
+
+  pthread_attr_t rx_attr;
+  pthread_attr_t tx_attr;
+
+  rc = pthread_attr_init(&rx_attr);
+  mu_assert(rc == 0, "Failed to init rx thread.");
+
+  rc = pthread_attr_init(&tx_attr);
+  mu_assert(rc == 0, "Failed to init tx thread.");
+
+  pthread_create(&rx_tid, &rx_attr, send_files, "");
+  pthread_create(&tx_tid, &tx_attr, get_files, "");
+
+  pthread_join(rx_tid, NULL);
+  pthread_join(tx_tid, NULL);
+  
+  return NULL;
+}
+
 
 char *all_tests()
 {
@@ -227,6 +272,7 @@ char *all_tests()
   mu_run_test(test_byte_layer);
   mu_run_test(test_packet);
   mu_run_test(test_prepended_packet);
+  mu_run_test(test_file);
 
   return NULL;
 }
