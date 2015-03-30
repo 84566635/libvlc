@@ -44,7 +44,7 @@ MODULE_AUTHOR("Albin Severinson");
 MODULE_LICENSE("GPL");
 
 //The frequency of the physical layer.
-#define FREQ 10000;
+#define FREQ 5000;
 
 //Some constants
 #define PREAMBLE_LEN 1
@@ -123,8 +123,9 @@ int tx_state = 0;
 //Used for keeping track of the current receiver state.
 int rx_state = 0;
 
-//Buffer for storing incoming data before it's moved to a packet
-u8 rx_byte_buffer[ETH_DATA_LEN];
+//Buffer for storing incoming data before it's moved to a packet.
+//Added some padding for safety.
+u8 rx_byte_buffer[ETH_DATA_LEN + 10];
 unsigned int rx_packet_len = 0;
 
 /* Mask out a specific bit from an int.
@@ -190,10 +191,12 @@ void timer_handler(rtdm_timer_t *timer)
         tx_state = TX_SENDING_PREAMBLE;
 
         //Printout payload for debugging purposes
+        /*
         for(i = 0;i < tx_packet->skb->len;i++){
           printk(KERN_INFO "%c", tx_packet->skb->data[i]);
         }
         printk(KERN_INFO "\n");
+        */
 
         //Update stats
         priv = netdev_priv(vlc_dev);
@@ -218,8 +221,7 @@ void timer_handler(rtdm_timer_t *timer)
 
   end_tx:
     //Set the LED according to current bit
-    if(bit == 0) gpio_set_value(GPIO_OUTPUT, 0);
-    else if(bit == 1) gpio_set_value(GPIO_OUTPUT, 1);
+    gpio_set_value(GPIO_OUTPUT, bit);
   }
 
  start_rx:
@@ -236,6 +238,7 @@ void timer_handler(rtdm_timer_t *timer)
 
       //Create an empty packet
       rx_packet = kmalloc(sizeof(struct vlc_packet), GFP_KERNEL);
+      rx_packet_len = 0;
 
       goto end_rx;
     }
@@ -270,7 +273,7 @@ void timer_handler(rtdm_timer_t *timer)
       priv = netdev_priv(vlc_dev);
 
       //Create an sk_buff
-      rx_packet->skb = dev_alloc_skb(rx_packet_len + 2);
+      rx_packet->skb = dev_alloc_skb(rx_packet_len);
       rx_packet->skb->len = rx_packet_len;
 
       if(!rx_packet->skb){
@@ -282,11 +285,16 @@ void timer_handler(rtdm_timer_t *timer)
       memcpy(skb_put(rx_packet->skb, rx_packet_len), 
              rx_byte_buffer, rx_packet_len);
 
+      //Zero out the buffer
+      memset(rx_byte_buffer, 0, ETH_DATA_LEN + 10);
+
       //Printout payload for debugging purposes
+      /*
       for(i = 0;i < rx_packet->skb->len;i++){
         printk(KERN_INFO "%c", rx_packet->skb->data[i]);
       }
       printk(KERN_INFO "\n");
+      */
       
       //Update statistics
       priv->stats.rx_packets++;
@@ -295,8 +303,8 @@ void timer_handler(rtdm_timer_t *timer)
       //Write metadata, and pass to higher layers
       rx_packet->skb->dev = vlc_dev;
       rx_packet->skb->protocol = eth_type_trans(rx_packet->skb, vlc_dev);
-      rx_packet->skb->ip_summed = CHECKSUM_UNNECESSARY;
-      netif_rx(rx_packet->skb);
+      rx_packet->skb->ip_summed = CHECKSUM_NONE;
+      if(netif_rx(rx_packet->skb) != NET_RX_SUCCESS) printk(KERN_NOTICE "VLC: Packet droped when passed to upper layers.\n");
 
       //Cleanup the packet
       kfree(rx_packet);
@@ -404,7 +412,7 @@ static int __init vlc_init_module(void)
 
   //Override some of the values.
   vlc_dev->netdev_ops = &vlc_netdev_ops;
-  vlc_dev->flags |= IFF_NOARP;
+  //vlc_dev->flags |= IFF_NOARP;
   vlc_dev->features |= NETIF_F_HW_CSUM;
 
   //Init the vlc_priv struct
